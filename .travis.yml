@@ -15,4 +15,5 @@ before_install:
   - cd $TRAVIS_BUILD_DIR
 script: mvn clean install
 after_success:
-  - mvn cobertura:cobertura coveralls:report
+  - mvn cobertura:cobertura
+  - bash <(curl -s https://codecov.io/bash)
