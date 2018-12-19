@@ -267,6 +267,7 @@ public abstract class BookKeeper implements BookKeeperService.Iface
           nonLocalRequests++;
         }
         else {
+          log.info("Checking if block " + blockNum + " is cached for " + remotePath);
           if (md.isBlockCached(blockNum)) {
             blockLocations.add(new BlockLocation(Location.CACHED, blockSplits.get(split)));
             cacheRequests++;
@@ -440,6 +441,15 @@ public abstract class BookKeeper implements BookKeeperService.Iface
     }
   }
 
+  // NOTE: This additional read method was added to track read calls from the LDTS, to see if the issue was limited to these calls.
+  @Override
+  public boolean readDataNL(String remotePath, long offset, int length, long fileSize, long lastModified, int clusterType)
+      throws TException
+  {
+    log.warn("Getting read data call from NL read");
+    return readData(remotePath, offset, length, fileSize, lastModified, clusterType);
+  }
+
   @Override
   public FileInfo getFileInfo(String remotePath) throws TException
   {
@@ -483,6 +493,7 @@ public abstract class BookKeeper implements BookKeeperService.Iface
     try {
       int idx = 0;
       CacheStatusRequest request = new CacheStatusRequest(remotePath, fileSize, lastModified, startBlock, endBlock, clusterType);
+      log.info("Getting cache status for reading " + remotePath);
       List<BlockLocation> blockLocations = getCacheStatus(request);
 
       for (long blockNum = startBlock; blockNum < endBlock; blockNum++, idx++) {
@@ -525,7 +536,7 @@ public abstract class BookKeeper implements BookKeeperService.Iface
       return true;
     }
     catch (Exception e) {
-      log.warn("Could not cache data: " + Throwables.getStackTraceAsString(e));
+      log.warn("Could not cache data for " + remotePath + ": " + Throwables.getStackTraceAsString(e));
       return false;
     }
     finally {

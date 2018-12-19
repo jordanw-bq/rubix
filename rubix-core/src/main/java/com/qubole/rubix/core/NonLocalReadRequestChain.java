@@ -126,7 +126,7 @@ public class NonLocalReadRequestChain extends ReadRequestChain
           totalRead += nread;
           if (nread == -1) {
             totalRead -= bytesread;
-            throw new Exception("Error reading from Local Transfer Server");
+            throw new Exception("Error reading bytes for " + filePath + " from Local Transfer Server");
           }
           dst.position(bytesread + readRequest.getDestBufferOffset());
         }
@@ -142,7 +142,7 @@ public class NonLocalReadRequestChain extends ReadRequestChain
         }
       }
       catch (Exception e) {
-        log.info("Error reading data from node : " + remoteNodeName, e);
+        log.error("Error reading data for " + filePath + " from node : " + remoteNodeName, e);
         if (strictMode) {
           throw Throwables.propagate(e);
         }

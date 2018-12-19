@@ -246,7 +246,10 @@ public abstract class CachingFileSystem<T extends FileSystem> extends FileSystem
   public boolean mkdirs(Path path, FsPermission fsPermission)
       throws IOException
   {
-    return fs.mkdirs(path, fsPermission);
+    log.info(String.format("--- Creating directory %s using CFS", path.toString()));
+    boolean mkdirsResult = fs.mkdirs(path, fsPermission);
+    log.info("--- Create dir success? " + mkdirsResult);
+    return mkdirsResult;
   }
 
   @Override

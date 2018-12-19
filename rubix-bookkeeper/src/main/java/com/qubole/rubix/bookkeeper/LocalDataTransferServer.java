@@ -195,7 +195,7 @@ public class LocalDataTransferServer extends Configured implements Tool
     public void run()
     {
       try {
-        log.debug("Connected to node - " + localDataTransferClient.getLocalAddress());
+        log.info("Connected to node - " + localDataTransferClient.getLocalAddress());
         BookKeeperFactory bookKeeperFactory = new BookKeeperFactory();
         ByteBuffer dataInfo = ByteBuffer.allocate(CacheConfig.getMaxHeaderSize(conf));
 
@@ -218,9 +218,9 @@ public class LocalDataTransferServer extends Configured implements Tool
         }
 
         if (!CacheConfig.isParallelWarmupEnabled(conf)) {
-          if (!bookKeeperClient.readData(remotePath, offset, readLength, header.getFileSize(),
+          if (!bookKeeperClient.readDataNL(remotePath, offset, readLength, header.getFileSize(),
               header.getLastModified(), header.getClusterType())) {
-            throw new Exception("Could not cache data required by non-local node");
+            throw new Exception(String.format("Could not cache data for %s required by non-local node", remotePath));
           }
         }
         else {

@@ -24,9 +24,16 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 public class CacheUtil
 {
@@ -39,7 +46,7 @@ public class CacheUtil
   /**
    * Create the necessary directories for caching file data.
    *
-   * @param conf  The current Hadoop configuration.
+   * @param conf The current Hadoop configuration.
    * @throws FileNotFoundException if the parent directory for the cache cannot be found.
    */
   public static void createCacheDirectories(Configuration conf) throws FileNotFoundException
@@ -68,7 +75,7 @@ public class CacheUtil
   /**
    * Get the number of disks available for use on the filesystem.
    *
-   * @param conf  The current Hadoop configuration.
+   * @param conf The current Hadoop configuration.
    * @return The number of disks available.
    */
   public static int getCacheDiskCount(Configuration conf)
@@ -79,7 +86,7 @@ public class CacheUtil
   /**
    * Get a map of disk numbers to their corresponding paths on the file system.
    *
-   * @param conf  The current Hadoop configuration.
+   * @param conf The current Hadoop configuration.
    * @return A map of disk numbers to disk paths.
    */
   public static HashMap<Integer, String> getCacheDiskPathsMap(final Configuration conf)
@@ -113,8 +120,8 @@ public class CacheUtil
   /**
    * Get the path for the provided disk number.
    *
-   * @param dirIndex  The index of the disk directory to fetch.
-   * @param conf      The current Hadoop configuration.
+   * @param dirIndex The index of the disk directory to fetch.
+   * @param conf     The current Hadoop configuration.
    * @return The path of the desired cache disk.
    */
   public static String getDirPath(int dirIndex, Configuration conf)
@@ -126,8 +133,8 @@ public class CacheUtil
   /**
    * Determine the local path for a given remote path.
    *
-   * @param remotePath  The path for a remote location.
-   * @param conf        The current Hadoop configuration.
+   * @param remotePath The path for a remote location.
+   * @param conf       The current Hadoop configuration.
    * @return The local path location.
    */
   public static String getLocalPath(String remotePath, Configuration conf)
@@ -139,8 +146,8 @@ public class CacheUtil
   /**
    * Determine the metadata file path for a given remote path.
    *
-   * @param remotePath  The path for a remote location.
-   * @param conf        The current Hadoop configuration.
+   * @param remotePath The path for a remote location.
+   * @param conf       The current Hadoop configuration.
    * @return The metadata file path.
    */
   public static String getMetadataFilePath(String remotePath, Configuration conf)
@@ -152,8 +159,8 @@ public class CacheUtil
   /**
    * Determine whether the file at the given path is a metadata file.
    *
-   * @param filePath  The path to a possible metadata file.
-   * @param conf      The current Hadoop configuration.
+   * @param filePath The path to a possible metadata file.
+   * @param conf     The current Hadoop configuration.
    * @return true if the file is a metadata file, false otherwise
    */
   public static boolean isMetadataFile(String filePath, Configuration conf)
@@ -164,8 +171,8 @@ public class CacheUtil
   /**
    * Determine whether data should be cached.
    *
-   * @param path  The data location path.
-   * @param conf  The current Hadoop configuration.
+   * @param path The data location path.
+   * @param conf The current Hadoop configuration.
    * @return True if caching should be skipped, false otherwise.
    */
   public static boolean skipCache(String path, Configuration conf)
@@ -192,19 +199,47 @@ public class CacheUtil
   /**
    * Create the cache directory from the provided path.
    *
-   * @param cacheDirPath  The path for which to create the directory.
+   * @param cacheDirPath The path for which to create the directory.
    */
   private static void createCacheDirectory(String cacheDirPath)
   {
+    log.info("Creating cache directory: " + cacheDirPath);
     final File cacheDir = new File(cacheDirPath);
-    cacheDir.mkdirs();
-    cacheDir.setWritable(true, false);
+    boolean bExists = cacheDir.exists();
+    if (bExists) {
+      log.warn("B-YES Already exists: " + cacheDirPath);
+    }
+    else {
+      log.warn("B-NO  Does not already exist: " + cacheDirPath);
+    }
+
+//    cacheDir.mkdirs();
+    try {
+      Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxrwxrwx");
+      Path dirParent = Paths.get(cacheDirPath).getParent();
+      log.info("Creating parent path " + dirParent.toString());
+      Files.createDirectories(dirParent, PosixFilePermissions.asFileAttribute(perms));
+      Path dir = Paths.get(cacheDirPath);
+      log.info("Creating path " + dir.toString());
+      Files.createDirectory(dir, PosixFilePermissions.asFileAttribute(perms));
+    }
+    catch (IOException e) {
+      log.error("Error creating cache directory for path " + cacheDirPath, e);
+    }
+//    cacheDir.setWritable(true, false);
+    boolean aExists = cacheDir.exists();
+    if (aExists) {
+      log.warn("A-YES Exists: " + cacheDirPath);
+    }
+    else {
+      log.warn("A-NO does not exist: " + cacheDirPath);
+    }
   }
 
   /**
    * Determines whether a given file name exists on the filesystem.
    *
-   * @param filePath  The file path to check.
+   * @param filePath The file path to check.
    * @return True if the file exists, false otherwise.
    */
   private static boolean exists(String filePath)
@@ -215,8 +250,8 @@ public class CacheUtil
   /**
    * Get the cache directory path for a given remote path.
    *
-   * @param remotePath  The remote path location
-   * @param conf        The current Hadoop configuration.
+   * @param remotePath The remote path location
+   * @param conf       The current Hadoop configuration.
    * @return The path to the cache directory.
    */
   private static String getDirectory(String remotePath, Configuration conf)
@@ -233,7 +268,7 @@ public class CacheUtil
   /**
    * Get the list of cache directory prefixes.
    *
-   * @param conf  The current Hadoop configuration.
+   * @param conf The current Hadoop configuration.
    * @return A list containing all provided prefixes,
    */
   public static List<String> getDirPrefixList(Configuration conf)
@@ -245,8 +280,8 @@ public class CacheUtil
   /**
    * Get the local directory path for a given remote path.
    *
-   * @param remotePath  The remote path location.
-   * @param conf        The current Hadoop configuration.
+   * @param remotePath The remote path location.
+   * @param conf       The current Hadoop configuration.
    * @return The local directory path.
    */
   private static String getLocalDirFor(String remotePath, Configuration conf)
@@ -265,7 +300,7 @@ public class CacheUtil
   /**
    * Get the directory name for a given remote path.
    *
-   * @param remotePath  The remote path to parse.
+   * @param remotePath The remote path to parse.
    * @return The remote path's directory name.
    */
   public static String getName(String remotePath)
@@ -276,7 +311,7 @@ public class CacheUtil
   /**
    * Get the parent directory for a given remote path.
    *
-   * @param remotePath  The remote path to parse.
+   * @param remotePath The remote path to parse.
    * @return The remote path's parent directory.
    */
   private static String getParent(String remotePath)
@@ -287,8 +322,8 @@ public class CacheUtil
   /**
    * Determines if the given path is allowed to be cached.
    *
-   * @param path  The path to cache.
-   * @param conf  The current Hadoop configuration.
+   * @param path The path to cache.
+   * @param conf The current Hadoop configuration.
    * @return True if the location can be cached, false otherwise.
    */
   private static boolean isLocationAllowedToCache(String path, Configuration conf)
@@ -310,7 +345,7 @@ public class CacheUtil
   /**
    * Determines whether a table is allowed to be cached.
    *
-   * @param conf  The current Hadoop configuration.
+   * @param conf The current Hadoop configuration.
    * @return True if the table can be cached, false otherwise.
    */
   private static boolean isTableAllowedToCache(Configuration conf)
@@ -332,7 +367,7 @@ public class CacheUtil
   /**
    * Determines whether the minimum number of columns has been selected.
    *
-   * @param conf  The current Hadoop configuration
+   * @param conf The current Hadoop configuration
    * @return True if the minimum cumber of columns was chosen, false otherwise.
    */
   private static boolean minColumnsSelected(Configuration conf)

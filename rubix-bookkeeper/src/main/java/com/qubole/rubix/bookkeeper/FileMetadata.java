@@ -15,6 +15,7 @@ package com.qubole.rubix.bookkeeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.RemovalCause;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Striped;
 import com.qubole.rubix.spi.CacheUtil;
 import org.apache.commons.logging.Log;
@@ -25,6 +26,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 
 import static com.qubole.rubix.spi.CacheConfig.getBlockSize;
@@ -87,6 +94,14 @@ public class FileMetadata
   void refreshBitmap()
       throws IOException
   {
+    log.info(String.format("Refreshing bitmap for %s", remotePath));
+    final Path localPathParent = Paths.get(localPath).getParent();
+    if (Files.exists(localPathParent)) {
+      log.warn("MD file path parent exists!\t" + localPathParent);
+    }
+    else {
+      log.warn("No, MD file path parent does not exist...\t" + localPathParent);
+    }
     byte[] bytes = new byte[bitmapFileSizeBytes];
     RandomAccessFile mdFile;
     Lock lock = stripes.get(remotePath);
@@ -97,11 +112,15 @@ public class FileMetadata
         mdFile.readFully(bytes, 0, (int) mdFile.length());
       }
       catch (FileNotFoundException e) {
-        File file = new File(mdFilePath);
-        file.createNewFile();
-        file.setWritable(true, false);
-        file.setReadable(true, false);
-        mdFile = new RandomAccessFile(file, "rw");
+        // Log file name
+        log.error("Could not locate MD file " + mdFilePath, e);
+//        File file = new File(mdFilePath);
+        Set<PosixFilePermission> perms = ImmutableSet.of(PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_WRITE);
+        Files.createFile(Paths.get(mdFilePath), PosixFilePermissions.asFileAttribute(perms));
+//        file.createNewFile(); // add try/catch to swallow
+//        file.setWritable(true, false);
+//        file.setReadable(true, false);
+        mdFile = new RandomAccessFile(mdFilePath, "rw");
         mdFile.setLength(bitmapFileSizeBytes);
       }
       mdFile.close();
